@@ -48,8 +48,6 @@ def run_paper_session(config_path: str = "config/config.yaml") -> None:
         hour="9-15",
         day_of_week="mon-fri",
         timezone=tz,
-        misfire_grace_time=3600,
-        coalesce=True,
     )
 
     sched = BlockingScheduler(timezone=tz)
@@ -66,6 +64,8 @@ def run_paper_session(config_path: str = "config/config.yaml") -> None:
         trigger,
         id="paper_cycle",
         max_instances=1,
+        misfire_grace_time=3600,
+        coalesce=True,
     )
 
     log.info(
