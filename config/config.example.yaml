@@ -18,6 +18,8 @@ ibkr:
   client_id: 20          # Use a different client_id from the data collectors
 
 # Scoring engine thresholds (starting defaults — ML layer will optimise these)
+# composite_score uses a 10,000x scaling constant on theta_per_collateral;
+# scores are in the 0.0–1.5 range for typical qualifying contracts.
 scoring:
   min_composite_score: 0.70
   min_annualised_roi: 70.0        # percent

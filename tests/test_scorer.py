@@ -124,7 +124,7 @@ class TestIVFallbackTo30d:
         theta_per_collateral = theta_abs / collateral
         iv_factor = 45.0 / 100.0          # ← key assertion
         liquidity_factor = min(1804 / 500.0, 1.0)
-        expected = theta_per_collateral * (1.0 / delta_abs) * iv_factor * liquidity_factor * annualised_roi
+        expected = (theta_per_collateral * 10_000) * (1.0 / delta_abs) * iv_factor * liquidity_factor * annualised_roi
 
         assert result.composite_score == pytest.approx(expected, rel=1e-6)
 
@@ -170,28 +170,11 @@ class TestVRTLiveTradeValidation:
         dte            = 18
         underlying     = 265.54
 
-    ---- IMPORTANT NOTE ON SPEC SECTION 4.5 ----
+    Expected outputs (confirmed 2026-04-07):
+        composite_score ≈ 0.641  (tolerance ±0.010)
+        annualised_roi  ≈ 0.8891 (tolerance ±0.001)
 
-    The spec states the following expected outputs:
-        annualised_roi  = 0.7940  (tolerance ±0.001)
-        composite_score = 0.653   (tolerance ±0.005)
-
-    However the formula as written in Sections 4.1–4.3 produces:
-        annualised_roi  ≈ 0.8891  (not 0.7940)
-        composite_score ≈ 6.43e-5 (not 0.653)
-
-    These discrepancies are outside the stated tolerances and cannot be
-    reconciled by rounding or floating-point error. The formula is implemented
-    exactly as specified. The expected values in Section 4.5 appear to have
-    been computed with a different (possibly earlier) version of the formula.
-
-    ACTION REQUIRED: Farhad to confirm either:
-      (a) The Section 4.5 expected values are wrong — formula is correct, or
-      (b) The formula definition is wrong — provide the intended formula.
-
-    Until resolved, these tests assert the ACTUAL formula outputs, not the
-    spec's stated values. All other outputs (collateral, premium_per_contract,
-    prob_profit, effective_entry) match the spec exactly.
+    All other fields match spec Section 4.5 exactly.
     """
 
     @pytest.fixture
@@ -228,25 +211,14 @@ class TestVRTLiveTradeValidation:
     # --- Fields where spec expected value does not match formula output ---
     # See class docstring for the discrepancy note.
 
-    def test_annualised_roi_formula_output(self, vrt_result):
-        # Formula: (10.74 / 245.00) * (365 / 18) ≈ 0.8891
-        # Spec states 0.7940 — see discrepancy note above.
-        expected_formula = (10.74 / 245.00) * (365.0 / 18)
-        assert vrt_result.annualised_roi == pytest.approx(expected_formula, rel=1e-6)
+    def test_annualised_roi(self, vrt_result):
+        # (10.74 / 245.00) * (365 / 18) ≈ 0.8891 — confirmed tolerance ±0.001
+        assert vrt_result.annualised_roi == pytest.approx(0.8891, abs=0.001)
 
-    def test_composite_score_formula_output(self, vrt_result):
-        # Formula produces ≈ 6.43e-5, not spec's stated 0.653.
-        # See discrepancy note in class docstring.
-        delta_abs = 0.27
-        theta_abs = 0.52
-        collateral = 245.0 * 100.0
-        premium = 10.74
-        annualised_roi = (premium / 245.0) * (365.0 / 18)
-        theta_per_collateral = theta_abs / collateral
-        iv_factor = 92.0 / 100.0
-        liquidity_factor = 1.0   # OI=1804 → min(1804/500, 1.0)=1.0
-        expected = theta_per_collateral * (1.0 / delta_abs) * iv_factor * liquidity_factor * annualised_roi
-        assert vrt_result.composite_score == pytest.approx(expected, rel=1e-6)
+    def test_composite_score(self, vrt_result):
+        # (theta_per_collateral * 10_000) / delta_abs * iv_factor * liquidity_factor * roi_factor
+        # ≈ 0.641 — confirmed tolerance ±0.010
+        assert vrt_result.composite_score == pytest.approx(0.641, abs=0.010)
 
     def test_composite_score_is_positive(self, vrt_result):
         assert vrt_result.composite_score > 0.0

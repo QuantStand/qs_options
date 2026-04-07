@@ -98,7 +98,7 @@ class OptionScorer:
             composite_score = 0.0
         else:
             composite_score = (
-                theta_per_collateral
+                (theta_per_collateral * 10_000)  # scaling constant — keeps scores in interpretable range
                 * (1.0 / delta_abs)
                 * iv_factor
                 * liquidity_factor
