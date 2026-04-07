@@ -46,8 +46,9 @@ rules:
   early_close_dte_boundary: 7               # switch to tight threshold below this DTE
   early_close_threshold_standard: 0.25      # close when current_price <= 25% of entry_price
   early_close_threshold_tight: 0.40         # tighter target inside the boundary
-  stop_loss_multiplier: 3.0                 # close when current_price >= 3× entry_price
+  stop_loss_underlying_price: 250.0         # trigger only when underlying drops below this level
   stop_loss_delta_threshold: 0.40           # also require |delta| >= this before triggering stop
+  stop_loss_dte_threshold: 10               # only trigger stop-loss inside this DTE
 
 # Paper trading scheduler
 simulator:
