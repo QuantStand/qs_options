@@ -37,6 +37,25 @@ position_management:
   portfolio_nav_usd: 2350000
   early_close_threshold_pct: 25.0        # close when this % of premium remains
   iv_percentile_min: 70.0                # do not open below this
+  contracts_per_trade: 5
+  max_collateral_per_position_usd: 352500  # strike * 100 * contracts hard cap
+
+# Exit rules
+rules:
+  dte_entry_min: 15                         # do not open below this DTE
+  early_close_dte_boundary: 7               # switch to tight threshold below this DTE
+  early_close_threshold_standard: 0.25      # close when current_price <= 25% of entry_price
+  early_close_threshold_tight: 0.40         # tighter target inside the boundary
+  stop_loss_multiplier: 3.0                 # close when current_price >= 3× entry_price
+  stop_loss_delta_threshold: 0.40           # also require |delta| >= this before triggering stop
+
+# Paper trading scheduler
+simulator:
+  mode: PAPER
+  cycle_interval_minutes: 15
+  market_open: "09:30"
+  market_close: "16:00"
+  max_entries_per_cycle: 1
 
 # Trade modes
 trading:
