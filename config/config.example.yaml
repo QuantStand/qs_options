@@ -1,0 +1,47 @@
+# QuantStand Options Engine — Configuration
+# Copy to config.yaml and populate with real values
+# config.yaml is in .gitignore — never commit real credentials
+
+# Database
+database:
+  host: localhost
+  port: 5432
+  name: qs_options
+  user: YOUR_DB_USER
+  password: YOUR_DB_PASSWORD
+
+# IBKR Gateway
+ibkr:
+  host: 127.0.0.1
+  live_port: 4002
+  paper_port: 4003
+  client_id: 20          # Use a different client_id from the data collectors
+
+# Scoring engine thresholds (starting defaults — ML layer will optimise these)
+scoring:
+  min_composite_score: 0.70
+  min_annualised_roi: 70.0        # percent
+  min_probability_of_profit: 70.0 # percent
+  min_open_interest: 500
+  dte_min: 15
+  dte_max: 25
+  strike_range_pct: 20.0          # percent from current price
+
+# Position management
+position_management:
+  max_concurrent_positions: 3
+  max_collateral_per_position_pct: 15.0  # percent of portfolio NAV
+  portfolio_nav_usd: 2350000
+  early_close_threshold_pct: 25.0        # close when this % of premium remains
+  iv_percentile_min: 70.0                # do not open below this
+
+# Trade modes
+trading:
+  mode: PAPER                     # PAPER or LIVE — change deliberately, never accidentally
+  paper_gateway_port: 4003
+  live_gateway_port: 4002
+
+# Logging
+logging:
+  level: INFO
+  log_dir: /var/log/quantstand/qs_options
