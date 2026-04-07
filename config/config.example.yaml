@@ -26,6 +26,7 @@ scoring:
   dte_min: 15
   dte_max: 25
   strike_range_pct: 20.0          # percent from current price
+  iv_percentile_min: 70.0         # do not open below this (0–100 scale)
 
 # Position management
 position_management:
