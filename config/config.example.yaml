@@ -49,6 +49,38 @@ rules:
   stop_loss_underlying_price: 250.0         # trigger only when underlying drops below this level
   stop_loss_delta_threshold: 0.40           # also require |delta| >= this before triggering stop
   stop_loss_dte_threshold: 10               # only trigger stop-loss inside this DTE
+  earnings_warning_dte: 5                   # alert if earnings fall within this many DTE of expiry
+
+# Telegram notification bot
+# Setup: create bot via @BotFather, add as admin to a private channel.
+# Fetch chat_id: https://api.telegram.org/bot{TOKEN}/getUpdates
+# bot_token and chat_id are secrets — config.yaml is gitignored.
+telegram:
+  bot_token: YOUR_BOT_TOKEN
+  chat_id: YOUR_CHAT_ID
+  alert_check_interval_minutes: 5
+  briefing_time_et: "16:30"
+  timezone: "America/New_York"
+
+# Portfolio — used for SGOV yield estimates in briefing and /pnl command.
+# Update sgov_nav_usd whenever capital is deployed from or returned to SGOV.
+portfolio:
+  sgov_nav_usd: 2350000
+
+# Earnings calendar — update each quarter when earnings dates are confirmed.
+# Set to null if no upcoming earnings are known.
+# Rule 2 fires if earnings_date <= expiry_date AND within earnings_warning_dte days.
+# Rule 2 is DEACTIVATED if earnings_date > expiry_date (position expires safely first).
+earnings_calendar:
+  VRT:  null   # Q2 2026 earnings TBD
+  GEV:  null
+  ETN:  null
+  GLD:  null   # ETFs have no earnings — leave null
+  SLV:  null
+  GDX:  null
+  ANET: null
+  MU:   null
+  QQQ:  null
 
 # Paper trading scheduler
 simulator:
