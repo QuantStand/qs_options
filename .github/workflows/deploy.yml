@@ -1,0 +1,74 @@
+name: Deploy qs_options to VPS
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:      # allow manual trigger from GitHub UI
+
+jobs:
+  deploy:
+    name: Deploy to QuantStand VPS
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Deploy to VPS
+        uses: appleboy/ssh-action@v1.0.3
+        with:
+          host: ${{ secrets.VPS_HOST }}
+          username: ${{ secrets.VPS_USER }}
+          key: ${{ secrets.VPS_SSH_KEY }}
+          script: |
+            set -e
+
+            echo ">>> Pulling latest qs_options..."
+            cd /root/qs_options
+            git pull origin main
+
+            echo ">>> Installing/updating Python dependencies..."
+            if [ -f requirements.txt ]; then
+              pip3 install -q -r requirements.txt
+            fi
+
+            echo ">>> Restarting PM2 processes..."
+            pm2 restart paper-trader
+            pm2 restart qs-notifier
+
+            echo ">>> Waiting for processes to stabilise (15s)..."
+            sleep 15
+
+            echo ">>> Health check..."
+            STATUS_PAPER=$(pm2 jlist | python3 -c "
+            import json, sys
+            procs = json.load(sys.stdin)
+            for p in procs:
+                if p['name'] == 'paper-trader':
+                    print(p['pm2_env']['status'])
+            ")
+            STATUS_NOTIFIER=$(pm2 jlist | python3 -c "
+            import json, sys
+            procs = json.load(sys.stdin)
+            for p in procs:
+                if p['name'] == 'qs-notifier':
+                    print(p['pm2_env']['status'])
+            ")
+
+            echo "paper-trader:  $STATUS_PAPER"
+            echo "qs-notifier:   $STATUS_NOTIFIER"
+
+            if [ "$STATUS_PAPER" != "online" ]; then
+              echo "ERROR: paper-trader is not online after deploy!"
+              pm2 logs paper-trader --lines 20 --nostream
+              exit 1
+            fi
+
+            if [ "$STATUS_NOTIFIER" != "online" ]; then
+              echo "ERROR: qs-notifier is not online after deploy!"
+              pm2 logs qs-notifier --lines 20 --nostream
+              exit 1
+            fi
+
+            echo ">>> Deploy complete. All processes healthy."
+            pm2 list
