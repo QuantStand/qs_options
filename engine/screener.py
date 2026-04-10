@@ -200,7 +200,7 @@ class OptionScreener:
                     bid=float(bid) if bid is not None else 0.0,
                     ask=float(ask) if ask is not None else 0.0,
                     mid=float(mid),
-                    open_interest=int(open_interest),
+                    open_interest=int(open_interest) if open_interest is not None else 0,
                     implied_vol=float(implied_vol),
                     delta=float(delta),
                     gamma=float(gamma) if gamma is not None else 0.0,
