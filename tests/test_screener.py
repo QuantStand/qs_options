@@ -396,3 +396,118 @@ def _make_scoreable_contract(
         vix_level=21.5,
         ibkr_conid=667769626,
     )
+
+
+# ---------------------------------------------------------------------------
+# Test: load_contracts() handles NULL open_interest from DB
+# ---------------------------------------------------------------------------
+
+class TestLoadContractsNullOpenInterest:
+    """
+    Regression test for: TypeError: int() argument must be a string,
+    a bytes-like object or a real number, not 'NoneType'
+
+    IBKR does not always return open_interest data. When open_interest is NULL
+    in options_chain_snapshots, load_contracts() must not crash — it must
+    silently default to 0. The contract will then be filtered out by the
+    min_open_interest threshold in apply_filters() rather than causing an
+    unhandled exception that silently drops ALL underlyings.
+
+    Fix: engine/screener.py line 203
+      Before: open_interest=int(open_interest)
+      After:  open_interest=int(open_interest) if open_interest is not None else 0
+    """
+
+    def _make_mock_row(self, open_interest):
+        """Return a mock DB row tuple matching _LOAD_CONTRACTS_SQL column order."""
+        return (
+            1,                                                    # underlying_id
+            "VRT",                                                # symbol
+            datetime(2026, 4, 7, 14, 0, 0, tzinfo=timezone.utc), # snapshot_time
+            265.54,                                               # underlying_price
+            date(2026, 4, 24),                                    # expiry_date
+            18,                                                   # dte
+            245.0,                                                # strike
+            "P",                                                  # option_type
+            10.50,                                                # bid
+            10.98,                                                # ask
+            10.74,                                                # mid
+            open_interest,                                        # open_interest — can be None
+            0.746,                                                # implied_vol
+            -0.27,                                                # delta
+            0.012,                                                # gamma
+            -0.52,                                                # theta
+            0.31,                                                 # vega
+            667769626,                                            # ibkr_conid
+            92.0,                                                 # iv_percentile_52w
+            88.0,                                                 # iv_percentile_30d
+            21.5,                                                 # vix_level
+        )
+
+    def _make_screener_with_rows(self, config, rows):
+        """Return an OptionScreener whose DB cursor returns the given rows."""
+        mock_pool = MagicMock()
+        mock_conn = MagicMock()
+        mock_cursor = MagicMock()
+        mock_cursor.fetchall.return_value = rows
+        mock_conn.cursor.return_value.__enter__ = MagicMock(return_value=mock_cursor)
+        mock_conn.cursor.return_value.__exit__ = MagicMock(return_value=False)
+        mock_pool.getconn.return_value = mock_conn
+        return OptionScreener(mock_pool, config)
+
+    def test_null_open_interest_does_not_raise(self, config):
+        """
+        load_contracts() must not raise TypeError when open_interest is NULL.
+        This was the production bug: int(None) → TypeError.
+        """
+        screener = self._make_screener_with_rows(
+            config, [self._make_mock_row(open_interest=None)]
+        )
+        snap_time = datetime(2026, 4, 7, 14, 0, 0, tzinfo=timezone.utc)
+        try:
+            contracts = screener.load_contracts(1, snap_time)
+        except TypeError as e:
+            pytest.fail(f"load_contracts() raised TypeError on NULL open_interest: {e}")
+        assert len(contracts) == 1
+
+    def test_null_open_interest_defaults_to_zero(self, config):
+        """
+        When open_interest is NULL, the resulting OptionContract must have
+        open_interest=0, not raise and not silently drop the contract.
+        """
+        screener = self._make_screener_with_rows(
+            config, [self._make_mock_row(open_interest=None)]
+        )
+        snap_time = datetime(2026, 4, 7, 14, 0, 0, tzinfo=timezone.utc)
+        contracts = screener.load_contracts(1, snap_time)
+        assert contracts[0].open_interest == 0
+
+    def test_null_open_interest_contract_fails_oi_filter(self, config):
+        """
+        A contract with open_interest=0 (from NULL DB value) must fail the
+        min_open_interest filter rather than silently pass or crash.
+        """
+        screener = self._make_screener_with_rows(
+            config, [self._make_mock_row(open_interest=None)]
+        )
+        snap_time = datetime(2026, 4, 7, 14, 0, 0, tzinfo=timezone.utc)
+        contracts = screener.load_contracts(1, snap_time)
+        scored = OptionScreener(MagicMock(), config).scorer.score(contracts[0])
+        result = screener.apply_filters(scored)
+        assert result.passed_all_filters is False
+        oi_failures = [f for f in result.filter_failures if "oi" in f]
+        assert len(oi_failures) == 1, (
+            f"Expected OI filter failure, got: {result.filter_failures}"
+        )
+
+    def test_integer_open_interest_still_works(self, config):
+        """
+        Regression guard: valid integer open_interest must still be parsed
+        correctly after the None-guard was added.
+        """
+        screener = self._make_screener_with_rows(
+            config, [self._make_mock_row(open_interest=1500)]
+        )
+        snap_time = datetime(2026, 4, 7, 14, 0, 0, tzinfo=timezone.utc)
+        contracts = screener.load_contracts(1, snap_time)
+        assert contracts[0].open_interest == 1500

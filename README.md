@@ -115,3 +115,30 @@ Pre-agreed rules for managing all open positions are documented in
 `docs/trading/position_management_rules.md`. This file is the source of truth
 for position management decisions. No rule may be overridden in the moment —
 changes require a documented update to that file before taking effect.
+
+---
+
+## Known issues & fixes
+
+### 2026-04-10 — NULL `open_interest` crash in `engine/screener.py`
+
+**Symptom:** `screener.run()` failed with `TypeError: int() argument must be a
+string, a bytes-like object or a real number, not 'NoneType'` for every
+underlying, producing 0 scored contracts and silencing all alerts.
+
+**Root cause:** IBKR does not always return open interest data for options
+contracts. When `open_interest` is NULL in `options_chain_snapshots`,
+`load_contracts()` called `int(None)` which raised a TypeError.
+
+**Fix:** `engine/screener.py` line 203 — added None-guard consistent with the
+existing pattern used for `bid`, `ask`, `gamma`, and `vega`:
+```python
+# Before
+open_interest=int(open_interest),
+# After
+open_interest=int(open_interest) if open_interest is not None else 0,
+```
+Contracts with `open_interest=0` are correctly filtered out by the
+`min_open_interest` threshold in `apply_filters()`.
+
+**Tests:** `tests/test_screener.py` — `TestLoadContractsNullOpenInterest`
