@@ -25,7 +25,9 @@ jobs:
 
             echo ">>> Pulling latest qs_options..."
             cd /root/qs_options
+            git stash
             git pull origin main
+            git stash pop || true   # restore local tweaks; ignore if nothing stashed
 
             echo ">>> Installing/updating Python dependencies..."
             if [ -f requirements.txt ]; then
